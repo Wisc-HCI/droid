@@ -2,6 +2,7 @@ import os
 import time
 from copy import deepcopy
 from datetime import date
+import json
 
 import cv2
 import h5py
@@ -46,6 +47,12 @@ class DataCollecter:
             os.makedirs(self.failure_logdir)
         self.save_data = save_data
 
+    def is_openpi_save_mode(self):
+        return self.save_data == "openpi"
+
+    def requires_calibration(self):
+        return self.save_data is True
+
     def reset_robot(self, randomize=False):
         self.env._robot.establish_connection()
         self.controller.reset_state()
@@ -78,9 +85,17 @@ class DataCollecter:
         info["robot_serial_number"] = "{0}-{1}".format(robot_type, robot_serial_number)
         info["version_number"] = droid_version
 
+        mp4_recording_folderpath = None
         if practice or (not self.save_data):
             save_filepath = None
             recording_folderpath = None
+        elif self.is_openpi_save_mode():
+            traj_dir = os.path.join(self.failure_logdir, info["time"])
+            save_filepath = os.path.join(traj_dir, "trajectory.h5")
+            recording_folderpath = None
+            mp4_recording_folderpath = os.path.join(traj_dir, "recordings", "MP4")
+            os.makedirs(mp4_recording_folderpath, exist_ok=True)
+            self._write_metadata_json(traj_dir, info)
         else:
             if len(self.full_cam_ids) != 6:
                 raise ValueError("WARNING: User is trying to collect data without all three cameras running!")
@@ -100,6 +115,7 @@ class DataCollecter:
             obs_pointer=self.obs_pointer,
             reset_robot=reset_robot,
             recording_folderpath=recording_folderpath,
+            mp4_recording_folderpath=mp4_recording_folderpath,
             save_filepath=save_filepath,
             wait_for_controller=True,
         )
@@ -112,6 +128,15 @@ class DataCollecter:
         if self.traj_saved:
             self.last_traj_path = os.path.join(self.success_logdir, info["time"])
             os.rename(os.path.join(self.failure_logdir, info["time"]), self.last_traj_path)
+
+    def _write_metadata_json(self, traj_dir, info):
+        metadata = deepcopy(info)
+        metadata["language_instruction"] = info.get("current_task", "")
+        metadata["data_format"] = "openpi_realsense_droid"
+        metadata["camera_ids"] = self.full_cam_ids
+        filepath = os.path.join(traj_dir, "metadata_openpi.json")
+        with open(filepath, "w") as json_file:
+            json.dump(metadata, json_file, indent=2)
 
     def calibrate_camera(self, cam_id, reset_robot=True):
         self.traj_running = True

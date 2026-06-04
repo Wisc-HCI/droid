@@ -35,9 +35,19 @@ class FrankaRobot:
     def launch_robot(self):
         self._robot = RobotInterface(ip_address="localhost")
         self._gripper = GripperInterface(ip_address="localhost")
-        self._max_gripper_width = self._gripper.metadata.max_width
+        self._max_gripper_width = self._get_max_gripper_width()
         self._ik_solver = RobotIKSolver()
         self._controller_not_loaded = False
+
+    def _get_max_gripper_width(self):
+        if hasattr(self._gripper, "metadata") and hasattr(self._gripper.metadata, "max_width"):
+            return self._gripper.metadata.max_width
+
+        gripper_state = self._gripper.get_state()
+        if hasattr(gripper_state, "max_width") and gripper_state.max_width > 0:
+            return gripper_state.max_width
+
+        return 0.085
 
     def kill_controller(self):
         self._robot_process.kill()
@@ -181,7 +191,7 @@ class FrankaRobot:
 
         return state_dict, timestamp_dict
 
-    def adaptive_time_to_go(self, desired_joint_position, t_min=0, t_max=4):
+    def adaptive_time_to_go(self, desired_joint_position, t_min=4, t_max=12):
         curr_joint_position = self._robot.get_joint_positions()
         displacement = desired_joint_position - curr_joint_position
         time_to_go = self._robot._adaptive_time_to_go(displacement)

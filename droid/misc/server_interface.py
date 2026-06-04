@@ -46,8 +46,8 @@ class ServerInterface:
         action_dict = self.server.update_command(command.tolist(), action_space, gripper_action_space, blocking)
         return action_dict
 
-    def create_action_dict(self, command, action_space="cartesian_velocity"):
-        action_dict = self.server.create_action_dict(command.tolist(), action_space)
+    def create_action_dict(self, command, action_space="cartesian_velocity", gripper_action_space=None):
+        action_dict = self.server.create_action_dict(command.tolist(), action_space, gripper_action_space)
         return action_dict
 
     def update_pose(self, command, velocity=True, blocking=False):

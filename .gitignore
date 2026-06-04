@@ -1,1 +1,11 @@
 *.DS_Store
+
+# Local robot data and evaluation artifacts.
+data/
+results/
+robot_camera_views.png
+
+# Python build/cache artifacts.
+__pycache__/
+*.py[cod]
+*.egg-info/

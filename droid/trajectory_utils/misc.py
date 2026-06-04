@@ -13,7 +13,7 @@ from droid.misc.parameters import *
 from droid.misc.time import time_ms
 from droid.misc.transformations import change_pose_frame
 from droid.trajectory_utils.trajectory_reader import TrajectoryReader
-from droid.trajectory_utils.trajectory_writer import TrajectoryWriter
+from droid.trajectory_utils.trajectory_writer import MP4TrajectoryRecorder, TrajectoryWriter
 
 
 def collect_trajectory(
@@ -27,6 +27,7 @@ def collect_trajectory(
     obs_pointer=None,
     save_images=False,
     recording_folderpath=False,
+    mp4_recording_folderpath=None,
     randomize_reset=False,
     reset_robot=True,
 ):
@@ -58,6 +59,8 @@ def collect_trajectory(
         traj_writer = TrajectoryWriter(save_filepath, metadata=metadata, save_images=save_images)
     if recording_folderpath:
         env.camera_reader.start_recording(recording_folderpath)
+    if mp4_recording_folderpath:
+        mp4_recorder = MP4TrajectoryRecorder(mp4_recording_folderpath, fps=env.control_hz)
 
     # Prepare For Trajectory #
     num_steps = 0
@@ -105,12 +108,20 @@ def collect_trajectory(
             action_info = env.create_action_dict(np.zeros_like(action))
         else:
             action_info = env.step(action)
+        if save_filepath and action_info is None:
+            raise RuntimeError("Robot update returned no action info; restart the NUC server and collect again.")
+        if save_filepath and (("joint_velocity" not in action_info) or ("gripper_position" not in action_info)):
+            raise RuntimeError(
+                "Saved trajectories require action/joint_velocity and action/gripper_position for OpenPI conversion."
+            )
         action_info.update(controller_action_info)
 
         # Save Data #
         control_timestamps["step_end"] = time_ms()
         obs["timestamp"]["control"] = control_timestamps
         timestep = {"observation": obs, "action": action_info}
+        if mp4_recording_folderpath:
+            mp4_recorder.write_images(obs["image"])
         if save_filepath:
             traj_writer.write_timestep(timestep)
 
@@ -125,6 +136,8 @@ def collect_trajectory(
         if end_traj:
             if recording_folderpath:
                 env.camera_reader.stop_recording()
+            if mp4_recording_folderpath:
+                mp4_recorder.close()
             if save_filepath:
                 traj_writer.close(metadata=controller_info)
             return controller_info

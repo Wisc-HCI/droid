@@ -780,14 +780,16 @@ class SceneConfigurationPage(tk.Frame):
             self.task_txt.insert(1.0, no_tasks_text)
             return
 
-        # Check that cameras are calibrated #
-        calib_info_dict = self.controller.robot.check_calibration_info(remove_hand_camera=True)
-        if len(calib_info_dict["missing"]) > 0:
-            self.controller.show_frame(IncompleteCalibration)
-            return
-        if len(calib_info_dict["old"]) > 0:
-            self.controller.show_frame(OldCalibration)
-            return
+        # Calibration is required for official DROID data collection, but not
+        # for no-save practice/evaluation flows that only need RGB observations.
+        if self.controller.robot.requires_calibration():
+            calib_info_dict = self.controller.robot.check_calibration_info(remove_hand_camera=True)
+            if len(calib_info_dict["missing"]) > 0:
+                self.controller.show_frame(IncompleteCalibration)
+                return
+            if len(calib_info_dict["old"]) > 0:
+                self.controller.show_frame(OldCalibration)
+                return
 
         # Check that scene isn't stale #
         last_scene_change = load_gui_info()["scene_id_timestamp"]
