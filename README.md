@@ -33,7 +33,7 @@ Since the DROID control laptop does not have a powerful GPU, we will start a rem
 ```bash
 uv run scripts/serve_policy.py policy:checkpoint --policy.config=pi05_droid --policy.dir=gs://openpi-assets/checkpoints/pi05_droid
 ```
-If you want to run a fine-tuned policy, change the policy.dir to your policy
+If you want to run a fine-tuned policy, change the `policy.dir` to your policy
 
 ### Step 2: Run the DROID robot
 
