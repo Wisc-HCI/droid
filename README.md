@@ -89,6 +89,6 @@ tail -f ~/logs/pi05_droid_<sub number>.err # or pi05_droid_<sub number>.log
 Once it's completed, transfer the checkpoint to our 4090 desktop:
 ```
 rsync -avh --progress \
-  yyi49@ap2002.chtc.wisc.edu:~/openpi/checkpoints/pi05_droid_finetune/realsense_droid/ \
+  <netID>@ap2002.chtc.wisc.edu:~/openpi/checkpoints/pi05_droid_finetune/realsense_droid/ \
   ~/Desktop/repo/openpi/checkpoints/pi05_droid_finetune/realsense_droid/
 ```
