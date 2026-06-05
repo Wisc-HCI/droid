@@ -20,3 +20,32 @@ This guide has been used to set up 18 DROID robot platforms over the course of t
 3. [Example Workflows to collect data or calibrate cameras](https://droid-dataset.github.io/droid/docs/example-workflows)
 
 If you encounter issues during setup, please raise them as issues in this github repo.
+
+----------
+## (Kindred's note) Openpi - Control laptop - NUC Pipeline:
+
+### Step 1: Start a policy server
+
+Since the DROID control laptop does not have a powerful GPU, we will start a remote policy server on a different machine with a more powerful GPU and then query it from the DROID control laptop during inference.
+
+1. On a machine with a powerful GPU (~NVIDIA 4090), clone and install the `openpi` repository following the instructions in the [README](https://github.com/Physical-Intelligence/openpi). I have set it up in the lab's 4090 desktop.
+2. Start the OpenPI server via the following command:
+```bash
+uv run scripts/serve_policy.py policy:checkpoint --policy.config=pi05_droid --policy.dir=gs://openpi-assets/checkpoints/pi05_droid
+```
+If you want to run a fine-tuned policy, change the policy.dir to your policy
+
+### Step 2: Run the DROID robot
+
+1. Make sure you have the most recent version of the DROID package installed on both the DROID control laptop and the NUC.
+2. On the control laptop, activate your DROID conda environment.
+3. Clone the openpi repo and install the openpi client, which we will use to connect to the policy server (this has very few dependencies and should be very fast to install): with the DROID conda environment activated, run `cd $OPENPI_ROOT/packages/openpi-client && pip install -e .`.
+4. Install `tyro`, which we will use for command line parsing: `pip install tyro`.
+5. Copy the `main.py` file from this directory to the `$DROID_ROOT/scripts` directory.
+6. Replace the camera IDs in the `main.py` file with the IDs of your cameras (you can find the camera IDs by running `ZED_Explorer` in the command line, which will open a tool that shows you all connected cameras and their IDs -- you can also use it to make sure that the cameras are well-positioned to see the scene you want the robot to interact with).
+7. Run the `main.py` file. Make sure to point the IP and host address to the policy server. (To make sure the server machine is reachable from the DROID laptop, you can run `ping <server_ip>` from the DROID laptop.) Also make sure to specify the external camera to use for the policy (we only input one external camera), choose from ["left", "right"].
+
+```bash
+python3 scripts/main.py --remote_host=<server_ip> --remote_port=<server_port> --external_camera="left"
+```
+
