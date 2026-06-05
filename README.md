@@ -68,3 +68,27 @@ python3 scripts/main.py --remote_host=192.168.4.5 --remote_port=8000 --external_
 
 ```
 ### Finetune instructions
+
+1. First, log in to CHTC with your netID:
+```
+ssh <netID>@ap2002.chtc.wisc.edu
+```
+2. Clone openpi repo:
+```
+git clone https://github.com/Wisc-HCI/openpi.git
+git checkout pi05-droid-finetune
+```
+3. Submit the job:
+```
+condor_submit pi05_droid_finetune.sub
+```
+You can check the status of the job by running `condor_q` and you will receive a unique job submission number. Check the log and error messages by running:
+```
+tail -f ~/logs/pi05_droid_<sub number>.err # or pi05_droid_<sub number>.log
+```
+Once it's completed, transfer the checkpoint to our 4090 desktop:
+```
+rsync -avh --progress \
+  yyi49@ap2002.chtc.wisc.edu:~/openpi/checkpoints/pi05_droid_finetune/realsense_droid/ \
+  ~/Desktop/repo/openpi/checkpoints/pi05_droid_finetune/realsense_droid/
+```
