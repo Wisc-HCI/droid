@@ -24,6 +24,7 @@ If you encounter issues during setup, please raise them as issues in this github
 ----------
 ## (Kindred's note) Openpi - Control laptop - NUC Pipeline:
 IP Configuration:
+
 Openpi desktop (Lab's 4090): 192.168.4.5
 
 Control laptop: 192.168.4.6 (You should set it up on your own control laptop)
