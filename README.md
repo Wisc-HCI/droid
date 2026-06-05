@@ -37,15 +37,24 @@ If you want to run a fine-tuned policy, change the policy.dir to your policy
 
 ### Step 2: Run the DROID robot
 
-1. Make sure you have the most recent version of the DROID package installed on both the DROID control laptop and the NUC.
-2. On the control laptop, activate your DROID conda environment.
-3. Clone the openpi repo and install the openpi client, which we will use to connect to the policy server (this has very few dependencies and should be very fast to install): with the DROID conda environment activated, run `cd $OPENPI_ROOT/packages/openpi-client && pip install -e .`.
-4. Install `tyro`, which we will use for command line parsing: `pip install tyro`.
-5. Copy the `main.py` file from this directory to the `$DROID_ROOT/scripts` directory.
-6. Replace the camera IDs in the `main.py` file with the IDs of your cameras (you can find the camera IDs by running `ZED_Explorer` in the command line, which will open a tool that shows you all connected cameras and their IDs -- you can also use it to make sure that the cameras are well-positioned to see the scene you want the robot to interact with).
-7. Run the `main.py` file. Make sure to point the IP and host address to the policy server. (To make sure the server machine is reachable from the DROID laptop, you can run `ping <server_ip>` from the DROID laptop.) Also make sure to specify the external camera to use for the policy (we only input one external camera), choose from ["left", "right"].
+1. Follow the instrution [here](https://droid-dataset.github.io/droid/software-setup/host-installation.html#configuring-the-nuc) to setup the NUC. I have set it up on our lab's laptop with Real-time kernel.
+2. On NUC, run:
+```bash
+cd Desktop/github/droid
+conda activate polymetis-local
+python scripts/server/run_server.py
+```
+3. Follow the instrution [here](https://droid-dataset.github.io/droid/software-setup/host-installation.html#configuring-the-laptopworkstation) to setup the control laptop, which should be your own laptop, since we are using realsense camera instead of ZED camera, we need to install `pyrealsense2` package:
+```
+pip install pyrealsense2
+```
+4. Clone the openpi repo and install the openpi client, which we will use to connect to the policy server (this has very few dependencies and should be very fast to install): with the DROID conda environment activated, run `cd $OPENPI_ROOT/packages/openpi-client && pip install -e .`.
+5. Install `tyro`, which we will use for command line parsing: `pip install tyro`.
+~~6. Copy the `main.py` file from this directory to the `$DROID_ROOT/scripts` directory.~~
+~~7. Replace the camera IDs in the `main.py` file with the IDs of your cameras (you can find the camera IDs by running `ZED_Explorer` in the command line, which will open a tool that shows you all connected cameras and their IDs -- you can also use it to make sure that the cameras are well-positioned to see the scene you want the robot to interact with).~~ (You don't have to do this because I have already set it up for you.)
+8. Run the `main.py` file. Make sure to point the IP and host address to the policy server. (To make sure the server machine is reachable from the DROID laptop, you can run `ping 192.168.4.5` from the DROID laptop.) Also make sure to specify the external camera to use for the policy (we only input one external camera), choose from ["left", "right"].
 
 ```bash
-python3 scripts/main.py --remote_host=<server_ip> --remote_port=<server_port> --external_camera="left"
+python3 scripts/main.py --remote_host=192.168.4.5 --remote_port=8000 --external_camera="left"
 ```
 
