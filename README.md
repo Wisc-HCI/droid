@@ -64,6 +64,7 @@ pip install pyrealsense2
 8. Run the `main.py` file. Make sure to point the IP and host address to the policy server. (To make sure the server machine is reachable from the DROID laptop, you can run `ping 192.168.4.5` from the DROID laptop.) Also make sure to specify the external camera to use for the policy (we only input one external camera), choose from ["left", "right"].
 
 ```bash
-python3 scripts/main.py --remote_host=192.168.4.5 --remote_port=8000 --external_camera="left"
-```
+python3 scripts/main.py --remote_host=192.168.4.5 --remote_port=8000 --external_camera="left" --max_timesteps=800
 
+```
+### Finetune instructions
