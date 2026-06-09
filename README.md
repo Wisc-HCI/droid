@@ -92,3 +92,122 @@ rsync -avh --progress \
   <netID>@ap2002.chtc.wisc.edu:~/openpi/checkpoints/pi05_droid_finetune/realsense_droid/ \
   ~/Desktop/repo/openpi/checkpoints/pi05_droid_finetune/realsense_droid/
 ```
+
+----------
+## (Callie's note) Dockerized control-laptop setup with openpi
+
+This section documents the **Docker-based** control-laptop workflow on an
+Arch/CachyOS host with **Intel RealSense** cameras. It supersedes the manual
+host-side install in steps 4–7 of *Kindred's note* above: the openpi client is
+now **baked into the laptop Docker image**, and `scripts/main.py` is already
+adapted for RealSense, so there is nothing to `pip install` by hand.
+
+### Why Docker (and why the host OS doesn't matter)
+
+The DROID robot stack (Polymetis, RealSense SDK, the `droid` package) and the
+"Ubuntu-only" requirement in the upstream docs all live **inside** the
+`ghcr.io/droid-dataset/droid_laptop:panda` image, which is built on
+`nvidia/cuda:12.1.0-devel-ubuntu22.04`. The host being Arch/CachyOS is therefore
+irrelevant — Docker provides the Ubuntu userland. The GPU is exposed to the
+container through the NVIDIA Container Toolkit (`nvidia-ctk`).
+
+> Arch host prerequisites (the official `scripts/setup/laptop_setup.sh` is
+> Ubuntu/`apt`-only, so install these with `pacman` instead):
+> `nvidia-container-toolkit`, `git-lfs`, `android-tools`, then
+> `sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker`.
+
+### What is baked into the image
+
+`.docker/laptop/Dockerfile.laptop` installs the openpi client into the
+container's `robot` conda env (Python 3.7) with these lines:
+
+```dockerfile
+RUN git clone --depth 1 https://github.com/Physical-Intelligence/openpi.git /opt/openpi && \
+    pip install msgpack websockets pillow dm-tree tyro && \
+    pip install -e /opt/openpi/packages/openpi-client --no-deps
+```
+
+- **`--no-deps` is mandatory.** `openpi-client` pins `numpy>=1.22.4`, but the
+  `robot` env is Python 3.7, which caps numpy at `1.21.6`. A normal
+  `pip install -e .` fails on that constraint. The client's actual runtime deps
+  (`msgpack`, `websockets`, `pillow`, `dm-tree`) are installed explicitly above
+  and all have 3.7-compatible builds; the client code does not need numpy ≥1.22.
+- `tyro` (CLI parsing for `main.py`) is installed in the same step.
+- `cv2`, `tqdm`, and `PIL` — also used by `main.py` — are already present in the
+  `robot` env, so nothing else is required.
+
+`scripts/main.py` is committed and already adapted for the two-RealSense setup
+(no ZED, no camera-ID editing needed):
+- external camera = `varied_camera_1_id`, wrist camera = `hand_camera_id`
+  (read from `droid/misc/parameters.py`),
+- single RGB stream matched on the `_left` key, BGR→RGB conversion,
+- a policy-server reachability check before the robot is created,
+- `cv2`/`csv` for video/results (not `moviepy`/`pandas`),
+- an optional Tesollo gripper hook (`--enable_tesollo_gripper`).
+
+Two quality-of-life changes are also included:
+- **`.dockerignore`** — keeps `.git`, `docs`, runtime `data/`/`cache/`/`results/`
+  out of the build context (cuts it from ~1.4 GB to ~0.5 GB).
+- **`scripts/main.py` is bind-mounted** in `docker-compose-laptop.yaml`, so you
+  can edit it on the host and re-run **without rebuilding the image**.
+
+> Note: because `Dockerfile.laptop` lives inside the `COPY . /app` context and
+> cannot be `.dockerignore`d (the entrypoint script lives next to it), **editing
+> the Dockerfile forces a full image rebuild**. Editing `main.py` does not.
+
+### Build the laptop image (Arch host)
+
+The upstream `laptop_setup.sh` exports build variables from
+`droid/misc/parameters.py` and then runs `docker compose build`. On Arch you can
+do the build step directly:
+
+```bash
+cd ~/Documents/GitHub/droid
+export ROOT_DIR="$PWD" ROBOT_TYPE=panda LIBFRANKA_VERSION=0.9.0 \
+       NUC_IP=192.168.4.4 ROBOT_IP=192.168.4.3 LAPTOP_IP=192.168.4.6
+docker compose -f .docker/laptop/docker-compose-laptop.yaml build
+```
+
+### Run inference — full startup order
+
+The pieces connect to each other on startup, so bring them up **in this order**:
+
+1. **Robot.** Power on the Franka, open Franka Desk at `https://192.168.4.3`,
+   unlock the joints, and **enable FCI**. (Polymetis connects to the FCI on
+   startup, so this must be live first.)
+2. **NUC (`192.168.4.4`).** Start the Polymetis control server (see *Kindred's
+   note* step 2). The laptop's `RobotEnv` connects to it over the LAN using
+   `nuc_ip` from `parameters.py`.
+3. **Policy server (4090 desktop, `192.168.4.5`).** In the openpi repo on the
+   desktop:
+   ```bash
+   uv run scripts/serve_policy.py policy:checkpoint \
+     --policy.config=pi05_droid --policy.dir=gs://openpi-assets/checkpoints/pi05_droid
+   # serves on 0.0.0.0:8000  (use your fine-tuned --policy.dir for the custom policy)
+   ```
+   You do **not** need a direct laptop↔desktop cable — both just need to be on
+   the shared `192.168.4.x` LAN. Verify reachability from the laptop first:
+   `ping 192.168.4.5`. (A wired laptop connection is recommended to reduce
+   inference latency; 0.5–1 s per action chunk is normal.)
+4. **Control laptop (this machine).** Start the container and run `main.py`
+   inside it, pointing at the policy server:
+   ```bash
+   python3 scripts/main.py --remote_host=192.168.4.5 --remote_port=8000 \
+       --external_camera="left" --max_timesteps=800
+   ```
+   `main.py` is interactive — it prompts for a free-form language instruction and,
+   after each rollout, for a success score. Because of this, prefer launching it
+   in an interactive shell inside the container rather than relying on the
+   compose `command:` (which currently runs `python /app/scripts/main.py` with no
+   `--remote_host`, i.e. it would default to `0.0.0.0`). To wire the server IP
+   into the one-shot `docker compose up` path instead, change that `command:` to
+   include `--remote_host=192.168.4.5 --remote_port=8000`.
+
+### Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| `Cannot reach OpenPI policy server` on startup | Confirm the server is running on the 4090 and listening on `0.0.0.0:8000`; `ping 192.168.4.5` from the laptop; check both are on the `192.168.4.x` LAN. |
+| `RobotEnv` hangs/fails to create | The NUC Polymetis server (step 2) isn't up, or the robot FCI (step 1) isn't enabled. |
+| Missing image observations for a camera | RealSense serials in `droid/misc/parameters.py` don't match the connected cameras; the error message lists the available image keys. |
+| Editing the Dockerfile triggers a long rebuild | Expected — see the note above. Edit `main.py` (bind-mounted) instead when possible. |

@@ -19,6 +19,9 @@ services:
       - ${DOCKER_XAUTH}:${DOCKER_XAUTH}
       - ${ROOT_DIR}/droid/misc/parameters.py:/app/droid/misc/parameters.py
       - ${ROOT_DIR}/droid/calibration/calibration_info.json:/app/droid/calibration/calibration_info.json
+      # Mount the inference script so it can be edited on the host (e.g. RealSense
+      # camera tweaks) and re-run without rebuilding the image.
+      - ${ROOT_DIR}/scripts/main.py:/app/scripts/main.py
       - ${ROOT_DIR}/data:/app/data
       - ${ROOT_DIR}/cache:/app/cache
     build: 

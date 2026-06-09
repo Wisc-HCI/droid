@@ -37,6 +37,10 @@ RUN wget \
     && rm -f Miniconda3-latest-Linux-x86_64.sh
 ENV PATH /root/miniconda3/bin:$PATH
 
+# accept Anaconda channel Terms of Service (required by recent Miniconda releases)
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
 # create conda environment
 RUN conda create -n "robot" python=3.7
 SHELL ["conda", "run", "-n", "robot", "/bin/bash", "-c"]
@@ -77,6 +81,18 @@ RUN pip3 install -e . && \
     pip3 install dm-robotics-geometry==0.5.0 --no-deps && \
     pip3 install dm-robotics-manipulation==0.5.0 --no-deps && \
     pip3 install dm-robotics-controllers==0.5.0 --no-deps
+
+# install RealSense python bindings (this platform uses Intel RealSense cameras instead of ZED)
+RUN pip3 install pyrealsense2==2.55.1.6486
+
+# install the openpi client (connects to the remote pi05 policy server) + tyro (CLI parsing).
+# openpi lives outside this build context, so we shallow-clone it here.
+# --no-deps skips openpi-client's numpy>=1.22.4 pin, which is unsatisfiable on Python 3.7
+# (the robot env ships numpy 1.21.6); its other runtime deps are installed explicitly below
+# and all have 3.7-compatible builds.
+RUN git clone --depth 1 https://github.com/Physical-Intelligence/openpi.git /opt/openpi && \
+    pip install msgpack websockets pillow dm-tree tyro && \
+    pip install -e /opt/openpi/packages/openpi-client --no-deps
 
 
 # using miniconda instead of anaconda so overwrite sh scripts

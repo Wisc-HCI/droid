@@ -1,0 +1,27 @@
+# Build context excludes — these are not needed inside the laptop/NUC images and
+# only slow down `COPY . /app`. Keep droid/, scripts/, config/, .docker/, setup.py,
+# pyproject.toml, and README.md (setup.py may read it for long_description).
+
+# Version control (was ~870 MB of the 1.4 GB context)
+.git
+.github
+.gitmodules
+
+# Runtime data — these are bind-mounted as volumes in docker-compose, never baked in
+data
+cache
+results
+
+# Docs are not needed at runtime
+docs
+
+# Python / editor cruft
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.pytest_cache
+.ruff_cache
+
+# Eval/video artifacts
+*.mp4
+robot_camera_views.png
