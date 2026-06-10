@@ -22,6 +22,8 @@ services:
       # Mount the inference script so it can be edited on the host (e.g. RealSense
       # camera tweaks) and re-run without rebuilding the image.
       - ${ROOT_DIR}/scripts/main.py:/app/scripts/main.py
+      # Mount the entrypoint fix (conda.sh activation) so it applies without a rebuild.
+      - ${ROOT_DIR}/.docker/laptop/entrypoint.sh:/app/.docker/laptop/entrypoint.sh
       - ${ROOT_DIR}/data:/app/data
       - ${ROOT_DIR}/cache:/app/cache
     build: 
