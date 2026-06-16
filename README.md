@@ -23,4 +23,4 @@ If you encounter issues during setup, please raise them as issues in this github
 
 ----------
 ## (Kindred's note) Openpi - Control laptop - NUC Pipeline:
-Please refer to this [tutorial]](https://wisc-hci.github.io/openpi/droid-openpi-pipeline/)
+Please refer to this [tutorial](https://wisc-hci.github.io/openpi/droid-openpi-pipeline)
